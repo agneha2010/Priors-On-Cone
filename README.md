@@ -8,41 +8,16 @@ https://doi.org/10.48550/arXiv.2302.01974
 
 Contents
 
-data
+final_code/NHANES_analysis
 
-This folder contains the raw data downloaded from various publicly accessible sites to obtain prevalence data on various risk factors.
+This folder contains the analysis of the NHANES data. The example used in the paper is in the folder "log_transformed_new_constraints_with_zeros". The main code is "run_all_together.R" that uses two functions in the main folder - "fittingCompoSpikeFinal - Mixed effect Data.R" and "fittingCompo - Mixed effect Data.R".
 
-BRFSS
-  This folder contains the raw data downloaded from CDC. The BRFSS “500 Cities: Local Data for Better Health, 2019 release provides information on estimates of crude prevalence for covariates related to unhealthy behaviors and health outcomes among adult US residents for 500 cities in the year 2017. The risk factors are BMI, smoking status, hypertension, diabetes, respiratory disease other than asthma, chronic heart disease, stroke, kidney disease, arthritis, asthma.
-Census
-  This folder contains raw files on demographic variables, age, sex and ethnicity at city level downloaded from the publicly available American Community Survey (ACS) data.
-Cancer
-  The USCS data is a combined cancer data source from Centers for Disease Control and Prevention (CDC) and the National Cancer Institute (NCI) that provides statistics on the cancer incidence (newly diagonsed cases) across different cancer sites at county level. This folder contains information on cancer incidence rates. We adjust it with survival rates to obtain cancer prevalence for Haematological and Non-Haematological cancers.
-SDI
-  Information of Social Deprivation Index is obtained from Robert Graham Center and American Community Survey. This folder contains information on county level SDI quintile, which is a prooxy for IMD used in UK analysis.
-Geocodes
-  This folder contains data for mapping counties and cities.
-NHANES_Asthma_Diabetes
-  This folder is required to categorize diabetes prevalences into controlled and uncontrolled group.
-data_processing
+final_code/strong_sparse
 
-Mapping_cities_county and merge_city_data`: code for merging city- and county-level data.
-data_created
+This folder contains the simulation code when the parameter vector is sparse. The final code is "final_code/strong_sparse/fianl_run/strong_sparse_run_all_together.R" which uses two functions in the main folder - "fittingCompoSpikeFinal - Mixed effect.R" and "fittingCompo - Mixed effect.R".
 
-This folder contains all the intermediate datasets created.
-analysis
+final_code/dense
 
-This folder contains all codes for the analysis in the paper, including calculating the mean risk in each city, risk for the NHIS individuals, the proportion and size of populations/cases that exceed various high-risk thresholds, etc.
-figures_and_tables
+This folder contains the simulation code when the parameter vector is dense. The final code is "final_code/dense/final_run/dense_run_all_together.R" which uses two functions in the main folder - "fittingCompoSpikeFinal - Mixed effect.R" and "fittingCompo - Mixed effect.R".
 
-code
-This folder contains all codes to create the final set of figures and tables in the paper.
-output
-This folder contains the final set of figures and tables.
 
-Authors
-
-Jin Jin, Department of Biostatistics, Johns Hopkins Bloomberg School of Public Health
-Neha Agarwala, Department of Mathematics and Statistics, University of Maryland, Baltimore County
-Prosenjit Kundu, Department of Biostatistics, Johns Hopkins Bloomberg School of Public Health
-Nilanjan Chatterjee, Department of Biostatistics, Johns Hopkins Bloomberg School of Public Health
