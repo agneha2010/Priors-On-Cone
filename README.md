@@ -1,10 +1,10 @@
-Covid-19 Risk Prediction
+Characterization and estimation of high dimensional sparse regression parameters under linear inequality constraints
 
 Description
 
 Source code for the paper:
 
-Estimating the Size of High-risk Populations for COVID-19 Mortality across 442 US Cities
+https://doi.org/10.48550/arXiv.2302.01974
 
 Contents
 
