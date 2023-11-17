@@ -1,0 +1,13 @@
+{
+    "path" : "~/Desktop/Backup/priors_on_cone/projects/arkaprava_v1/NHANES_analysis/not_log_transformed_new_constraints",
+    "sortOrder" : [
+        {
+            "ascending" : false,
+            "columnIndex" : 2
+        },
+        {
+            "ascending" : false,
+            "columnIndex" : 4
+        }
+    ]
+}

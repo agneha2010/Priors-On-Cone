@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1679674794493.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3097403953",
+    "id" : "76DFA887",
+    "lastKnownWriteTime" : 1680835005,
+    "last_content_update" : 1680835005,
+    "path" : "~/Desktop/Backup/priors_on_cone/projects/arkaprava_v1/weak_sparse/bellshaped_wo_spline_adj.R",
+    "project_path" : "bellshaped_wo_spline_adj.R",
+    "properties" : {
+        "cursorPosition" : "101,5",
+        "scrollLine" : "0"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

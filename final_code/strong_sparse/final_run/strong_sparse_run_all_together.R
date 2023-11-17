@@ -1,0 +1,349 @@
+require(stats)
+require(graphics)
+library(splines2)
+library(coneproj)
+library(rcdd)
+library(truncnorm)
+library(truncdist)
+library(mvtnorm)
+library(R.utils)
+library(Matrix)
+library(igraph)
+library(MCMCpack)
+library(fda)
+library(nnls)
+library(reshape)
+library(ggplot2)
+library(dplyr)
+library(knitr)
+
+source("/Users/pro/Desktop/Backup/priors_on_cone/projects/arkaprava_v1/fittingCompoSpikeFinal - Mixed effect.R")
+source('/Users/pro/Desktop/Backup/priors_on_cone/projects/arkaprava_v1/fittingCompo - Mixed effect.R')
+
+n <- 100
+Ti <- 20
+Tiv <- 1:20
+
+sd = 0.5;m=0
+x = seq(-2,2,length.out = Ti)
+x = sort(x)
+set.seed(11131991)
+fx = dnorm(x,mean=m,sd=sd) ### true mean
+par(mfrow=c(1,1))
+plot(x,fx)
+
+ftf <- 3*fx
+
+## finding the A matrix for bell-shaped
+d2fx = function(x){
+  return(dnorm(x,mean=m,sd=sd)*(-1+(x-m)^2/sd^2)/sd^2)
+}
+d2fx(x)
+ind = which(d2fx(x)<0)
+t=1:20
+i1 = ind[1]
+i2 = ind[length(ind)]
+# 20 30
+A = matrix(0,nrow=Ti+2,ncol=Ti)
+for(j in 1:(i1-2)){
+  A[j,j] = t[(j+2)]-t[(j+1)]
+  A[j,(j+1)] = t[j]-t[(j+2)]
+  A[j,(j+2)] = t[j+1]-t[j]
+}
+
+for(j in (i2):(Ti-2)){
+  A[j,j] = t[(j+2)]-t[(j+1)]
+  A[j,(j+1)] = t[j]-t[(j+2)]
+  A[j,(j+2)] = t[j+1]-t[j]
+}
+
+for(j in (i1-1):(i2-1)){
+  A[j,j] = t[(j+1)]-t[(j+2)]
+  A[j,(j+1)] = -t[j]+t[(j+2)]
+  A[j,(j+2)] = -t[j+1]+t[j]
+}
+## added by me
+#A[i2-1,(i2-2):i2] = - A[i2-1,(i2-2):i2]
+
+A[(Ti-1),1] = -1.0
+A[(Ti-1),2] = 1.0
+A[Ti,1] = 1.0
+A[(Ti+1),(Ti-1)] = 1.0
+A[(Ti+1),Ti] = -1.0
+A[(Ti+2),Ti] = 1.0
+
+###############model fitting
+m = nrow(A)
+### makeH uses Ax <= 0; so multiply by -1
+B = -A
+qux <- makeH(B, rep(0, m))
+### makeH produces output A such that Ax >= 0
+#print(qux)
+out <- scdd(d2q(qux),adjacency = T,incidence = T,inputincidence = T,inputadjacency = T, representation = "H")
+out1 = q2d(out$output)
+#Why removing first two columns? Is it specific to this simulation setting? Or should it be for any A?
+
+Delta = t(out1[,-c(1:2)])
+dim(Delta)
+
+adjacency = out$adjacency
+adj.list = graph_from_adj_list(adjacency, mode = c("out", "in", "all", "total"),duplicate = TRUE)
+adj.mat = as_adjacency_matrix(adj.list, sparse=F)
+
+### cliques 
+graph.list = graph_from_adjacency_matrix(adj.mat, "undirected", weighted=T, diag=F)
+clique.list = max_cliques(graph.list)
+clique.size = unlist(lapply(clique.list,length))
+degree = clique.size
+
+l = count_max_cliques(graph.list)
+
+b.ind = as.vector(clique.list[[15]])
+ftf = rowMeans(Delta[,b.ind])
+plot(x,ftf,type="b",ylab="f(x)")
+
+J    <- 20
+knot <- J-3
+
+gamma_ls <- list()
+rep0 = 50
+
+err <- array(0, c(rep0, 3, 3))
+esti1 <- array(0, c(rep0, Ti, 3))
+esti2 <- array(0, c(rep0, Ti, 3))
+esti3 <- array(0, c(rep0, Ti, 3))
+sigl <- c(1, 2, 5)
+for(j in 1:3){
+  print(j)
+  for(rep in 1:rep0)
+  {
+    print(rep)
+    #Generate data
+    #j=1;rep=1
+    xt <- rep(1:Ti, n)
+    id <- 1
+    while(length(table(id)) < n){
+      ind <- sample(1:(Ti*n), 0.2*Ti*n)
+      id <- rep(1:n, each=Ti)
+      id <- id[-ind]
+    }
+    
+    xt <- xt[-ind]
+    
+    fxt <- ftf[xt]
+    
+    Sigma <- exp(-as.matrix(dist(1:Ti))/4)
+    
+    W <- mvtnorm::rmvnorm(n, sigma = Sigma)
+    W <- array(t(W))[-ind]
+    
+    sige <- sigl[j]
+    e <- rnorm(length(xt), sd=sige)
+    
+    y <- array(fxt + W + e)
+    
+    #A <- rbind(A, diag(J))
+    
+    BS <- matrix(0, length(y), Ti)
+    BS[cbind(1:length(y), xt)] <- 1
+    #BS <- bsplineS(xt/Ti, breaks = seq(0, 1, 1/knot))
+    Deltatilde <- BS %*% Delta
+    
+    Als <- list()
+    
+    for(i in 1:n){
+      ni <- which(id==i)
+      Als[[i]] <- bsplineS(xt[ni]/Ti, breaks = seq(0, 1, 1/knot))
+    }
+    
+    X <- Deltatilde
+    cliques=clique.list
+    Total_itr=30
+    
+    R <- fitting(y, X, diag(Ti), cliques=clique.list, Total_itr=30, id, Als)
+    URS <- fittingUN(y, xt, Ti, Total_itr=30)
+    UR <- fittingUN(y, xt, Ti, splin=F, Total_itr=30)
+    
+    err[rep, 1, j] <- R$err
+    err[rep, 2, j] <- URS$err
+    err[rep, 3, j] <- UR$err
+    
+    esti1[rep, , j] <- R$esti
+    esti2[rep, , j] <- URS$esti
+    esti3[rep, , j] <- UR$esti
+    
+    gamma_ls[[rep+(j-1)*rep0]] <- R$gamma
+    #print(err[rep, ])
+  }
+}
+
+### err columns are each approach; rows are reps; j=3 matrices for 3 diff sd values
+### 1st row restricted
+### 2nd row spline + unrestricted
+### 3rd row unrestricted + no spline 
+err.median = apply(err, 2:3, median)
+err.mean = apply(err, 2:3, mean)
+err_nspline = round(rbind(err.median,err.mean),3)
+colnames(err_nspline) = c("sd=0.5","sd=1","sd=2")
+rownames(err_nspline) = c("median R","median URS","median UR","mean R","mean URS","mean UR")
+err_nspline
+#write.csv(err,"Bellshaped_wo_spline_clique15_sd1_2_5.csv")
+
+### esti1 columns are each time point; rows are reps; j=3 matrices for 3 diff sd values
+estim <- apply(esti1, 2:3, median)
+estim2 <- apply(esti2, 2:3, median)
+estim3 <- apply(esti3, 2:3, median)
+
+dat.true = data.frame(x=1:Ti,y=ftf)
+dat.sd1 = round(data.frame(R_sd1=estim[,1],URS_sd1=estim2[,1],UR_sd1=estim3[,1]),3)
+dat.sd2 = round(data.frame(R_sd2=estim[,2],URS_sd2=estim2[,2],UR_sd2=estim3[,2]),3)
+dat.sd3 = round(data.frame(R_sd3=estim[,3],URS_sd3=estim2[,3],UR_sd3=estim3[,3]),3)
+df_nspline = data.frame(dat.true,dat.sd1,dat.sd2,dat.sd3)
+
+#### spline part
+#rep0 =5
+BS1 <- bsplineS((1:Ti)/Ti, breaks = seq(0, 1, 1/knot))
+
+A <- A %*% BS1
+
+m = nrow(A)
+### makeH uses Ax <= 0; so multiply by -1
+B = -A
+qux <- makeH(B, rep(0, m))
+### makeH produces output A such that Ax >= 0
+#print(qux)
+out <- scdd(d2q(qux),adjacency = T,incidence = T,inputincidence = T,inputadjacency = T, representation = "H")
+out1 = q2d(out$output)
+
+Delta = t(out1[,-c(1:2)])
+dim(Delta)
+
+adjacency = out$adjacency
+adj.list = graph_from_adj_list(adjacency, mode = c("out", "in", "all", "total"),duplicate = TRUE)
+adj.mat = as_adjacency_matrix(adj.list, sparse=F)
+
+### cliques 
+graph.list = graph_from_adjacency_matrix(adj.mat, "undirected", weighted=T, diag=F)
+clique.list = max_cliques(graph.list)
+clique.size = unlist(lapply(clique.list,length))
+degree = clique.size
+
+l = count_max_cliques(graph.list)
+
+gamma_ls <- list()
+
+err <- array(0, c(rep0, 1, 3))
+esti1 <- array(0, c(rep0, Ti, 3))
+for(j in 1:3){
+  print(j)
+  for(rep in 1:rep0)
+  {
+    print(rep)
+    xt <- rep(1:Ti, n)
+    id <- 1
+    while(length(table(id)) < n){
+      ind <- sample(1:(Ti*n), 0.2*Ti*n)
+      id <- rep(1:n, each=Ti)
+      id <- id[-ind]
+    }
+    
+    xt <- xt[-ind]
+    
+    fxt <- ftf[xt]
+    
+    Sigma <- exp(-as.matrix(dist(1:Ti))/4)
+    
+    W <- mvtnorm::rmvnorm(n, sigma = Sigma)
+    W <- array(t(W))[-ind]
+    
+    sige <- sigl[j]
+    e <- rnorm(length(xt), sd=sige)
+    
+    y <- array(fxt + W + e)
+    
+    BS <- bsplineS(xt/Ti, breaks = seq(0, 1, 1/knot))
+    Deltatilde <- BS %*% Delta
+    
+    Als <- list()
+    
+    for(i in 1:n){
+      #i=1
+      ni <- which(id==i)
+      
+      Als[[i]] <- bsplineS(xt[ni]/Ti, breaks = seq(0, 1, 1/knot))
+    }
+    
+    X <- Deltatilde
+    cliques=clique.list
+    Total_itr=30
+    
+    RS <- fitting(y, X, BS1, cliques=clique.list, Total_itr=30, id, Als)
+
+    err[rep, 1, j] <- RS$err
+
+    esti1[rep, , j] <- RS$esti
+
+    gamma_ls[[rep+(j-1)*rep0]] <- RS$gamma
+    #print(err[rep, ])
+  }
+}
+
+### 1st row spline + restricted
+### 2nd row spline + unrestricted
+err.median = apply(err, 2:3, median)
+err.mean = apply(err, 2:3, mean)
+err_spline = round(rbind(err.median,err.mean),3)
+colnames(err_spline) = c("sd=0.5","sd=1","sd=2")
+rownames(err_spline) = c("median RS","mean RS")
+err_spline
+
+df_err = rbind(err_nspline,err_spline)
+#write.csv(df_err,"Err_bellshaped_clique15_sd1_2_5.csv")
+
+### esti1 columns are each time point; rows are reps; j=3 matrices for 3 diff sd values
+estim4 <- apply(esti1, 2:3, median)
+
+df_spline = round(data.frame(RS_sd1=estim4[,1],RS_sd2=estim4[,2],
+                             RS_sd3=estim4[,2]),3)
+df = data.frame(df_nspline,df_spline)
+#write.csv(df,"model_fit_bellshaped_clique15_sd1_2_5.csv")
+
+#df = read.csv("model_fit_bellshaped_clique15_sd1_2_5.csv")
+
+dat.true = df %>% select(x,y)
+dat.sd1 = df %>% select(x,R_sd1,URS_sd1,UR_sd1,RS_sd1) %>% 
+  rename(R = R_sd1, URS = URS_sd1, UR = UR_sd1, RS = RS_sd1)
+dat.sd1 = melt(dat.sd1,id.vars = "x")
+dat.sd1$sd = "sd=1"
+dat.sd2 = df %>% select(x,R_sd2,URS_sd2,UR_sd2,RS_sd2)%>% 
+  rename(R = R_sd2, URS = URS_sd2, UR = UR_sd2, RS = RS_sd2)
+dat.sd2 = melt(dat.sd2,id.vars = "x")
+dat.sd2$sd = "sd=2"
+dat.sd3 = df %>% select(x,R_sd3,URS_sd3,UR_sd3,RS_sd3)%>% 
+  rename(R = R_sd3, URS = URS_sd3, UR = UR_sd3, RS = RS_sd3)
+dat.sd3 = melt(dat.sd3,id.vars = "x")
+dat.sd3$sd = "sd=5"
+dat = rbind(dat.sd1,dat.sd2,dat.sd3)
+levels(dat$variable) = c("Restricted","Unrestricted spline",
+                           "Unrestricted","Restricted spline")
+dat = dat %>% rename(Method=variable)
+p1 = ggplot()+
+  geom_line(data = dat,aes(x=x,y=value,color=Method))+facet_wrap(~sd)+
+  theme(text = element_text(size = 35))+
+  geom_point(data = dat.true,aes(x=x,y=y)) +
+  ylab("y") + theme_bw() + xlab("x") + 
+  theme(text = element_text(size = 17),
+        plot.title = element_text(size = 15, face = "bold"),
+        legend.title=element_text(size=15),
+        legend.text=element_text(size=15))
+p1
+#ggsave('plot.png', p1, width = 17,height=11, dpi = 300)
+
+#df.err = read.csv("Err_bellshaped_clique15_sd1_2_5.csv")
+
+library(kableExtra)
+options(kableExtra.latex.load_packages=F)
+df.latex = data.frame(df_err)
+dt = kable(df.latex)
+kable(df.latex, "latex")
+kbl(df_err, booktabs = T)
